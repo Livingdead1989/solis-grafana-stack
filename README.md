@@ -13,7 +13,7 @@ Production‑ready stack for collecting Solis inverter metrics from the **SolisC
 
 ## Quick start (Portainer → Git-based stack)
 
-1. **Create Secrets** in **Portainer → Secrets**:
+1. **Create Secrets** in **Portainer → Secrets** (Docker Swarm Required):
    - `influx_token` — InfluxDB API token (you can set via Influx UI after first boot).
    - `solis_password` — your SolisCloud/Solarman account password.
    - `solarman_client_id` — *(optional, if your tenant requires)*.
@@ -21,7 +21,7 @@ Production‑ready stack for collecting Solis inverter metrics from the **SolisC
    - `grafana_admin_password` — *(optional)* Grafana admin password.
 
 2. **Deploy stack** in **Portainer → Stacks → Add stack → Git**:
-   - **Repository URL:** your Git repo URL
+   - **Repository URL:** https://github.com/Livingdead1989/solis-grafana-stack
    - **Compose path:** `docker-compose.yml`
    - Enable **Build images**
    - In **Environment Variables / Overrides**, set (non-sensitive values):
@@ -77,6 +77,7 @@ Common fields included:
 
 ## Troubleshooting
 
+- **Enable Docker Swarm**: On the Docker host `docker swarm init`.
 - **401 / auth failed**: Check email/password and tenant’s auth requirements (client id/secret).  
 - **Empty series in Grafana**: Confirm field names match the API JSON.  
 - **Rate limits**: Keep `SOLIS_POLL_INTERVAL` ≥ 30–60s.  
