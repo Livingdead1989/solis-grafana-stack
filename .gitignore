@@ -1,0 +1,9 @@
+# local environment
+.env
+
+# macOS noise
+.DS_Store
+
+# editor/project files
+.vscode/
+.idea/

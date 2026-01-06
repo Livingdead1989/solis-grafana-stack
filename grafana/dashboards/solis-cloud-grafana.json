@@ -1,0 +1,109 @@
+
+{
+    "title": "Solis Inverter (Cloud API)",
+    "tags": ["solis", "cloud", "solarman"],
+    "style": "dark",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "15s",
+    "panels": [
+      {
+        "type": "stat",
+        "title": "Active Power",
+        "id": 1,
+        "gridPos": {"h": 6, "w": 8, "x": 0, "y": 0},
+        "fieldConfig": {"defaults": {"unit": "watt", "decimals": 0}},
+        "targets": [
+          {
+            "datasource": {"type": "influxdb", "uid": "influxdb"},
+            "query": "from(bucket: \"solis\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"solis_inverter\" and r._field == \"active_power\") |> last()"
+          }
+        ]
+      },
+      {
+        "type": "timeseries",
+        "title": "PV Voltage",
+        "id": 2,
+        "gridPos": {"h": 8, "w": 16, "x": 8, "y": 0},
+        "fieldConfig": {"defaults": {"unit": "volt", "decimals": 1}},
+        "targets": [
+          {
+            "datasource": {"type": "influxdb", "uid": "influxdb"},
+            "query": "from(bucket: \"solis\") |> range(start: -12h) |> filter(fn: (r) => r._measurement == \"solis_inverter\" and (r._field == \"pv1_voltage\" or r._field == \"pv2_voltage\"))"
+          }
+        ]
+      },
+      {
+        "type": "timeseries",
+        "title": "PV Current",
+        "id": 3,
+        "gridPos": {"h": 8, "w": 16, "x": 8, "y": 8},
+        "fieldConfig": {"defaults": {"unit": "amp", "decimals": 2}},
+        "targets": [
+          {
+            "datasource": {"type": "influxdb", "uid": "influxdb"},
+            "query": "from(bucket: \"solis\") |> range(start: -12h) |> filter(fn: (r) => r._measurement == \"solis_inverter\" and (r._field == \"pv1_current\" or r._field == \"pv2_current\"))"
+          }
+        ]
+      },
+      {
+        "type": "timeseries",
+        "title": "Grid Voltage & Frequency",
+        "id": 4,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+        "fieldConfig": {
+          "defaults": {"decimals": 2},
+          "overrides": [
+            {"matcher": {"id": "byName", "options": "grid_voltage"}, "properties": [{"id": "unit", "value": "volt"}]},
+            {"matcher": {"id": "byName", "options": "grid_frequency"}, "properties": [{"id": "unit", "value": "hertz"}]}
+          ]
+        },
+        "targets": [
+          {
+            "datasource": {"type": "influxdb", "uid": "influxdb"},
+            "query": "from(bucket: \"solis\") |> range(start: -12h) |> filter(fn: (r) => r._measurement == \"solis_inverter\" and (r._field == \"grid_voltage\" or r._field == \"grid_frequency\"))"
+          }
+        ]
+      },
+      {
+        "type": "stat",
+        "title": "Energy Today",
+        "id": 5,
+        "gridPos": {"h": 6, "w": 6, "x": 0, "y": 14},
+        "fieldConfig": {"defaults": {"unit": "kWh", "decimals": 2}},
+        "targets": [
+          {
+            "datasource": {"type": "influxdb", "uid": "influxdb"},
+            "query": "from(bucket: \"solis\") |> range(start: -24h) |> filter(fn: (r) => r._measurement == \"solis_inverter\" and r._field == \"energy_today\") |> last()"
+          }
+        ]
+      },
+      {
+        "type": "stat",
+        "title": "Energy Total",
+        "id": 6,
+        "gridPos": {"h": 6, "w": 6, "x": 6, "y": 14},
+        "fieldConfig": {"defaults": {"unit": "kWh", "decimals": 0}},
+        "targets": [
+          {
+            "datasource": {"type": "influxdb", "uid": "influxdb"},
+            "query": "from(bucket: \"solis\") |> range(start: -365d) |> filter(fn: (r) => r._measurement == \"solis_inverter\" and r._field == \"energy_total\") |> last()"
+          }
+        ]
+      },
+      {
+        "type": "timeseries",
+        "title": "Inverter Temperature",
+        "id": 7,
+        "gridPos": {"h": 6, "w": 12, "x": 12, "y": 14},
+        "fieldConfig": {"defaults": {"unit": "celsius", "decimals": 1}},
+        "targets": [
+          {
+            "datasource": {"type": "influxdb", "uid": "influxdb"},
+            "query": "from(bucket: \"solis\") |> range(start: -24h) |> filter(fn: (r) => r._measurement == \"solis_inverter\" and r._field == \"inverter_temperature\")"
+          }
+        ]
+      }
+    ]
+  }
+  

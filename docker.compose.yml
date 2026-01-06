@@ -1,0 +1,81 @@
+version: "3.8"
+
+services:
+  influxdb:
+    image: influxdb:2.7
+    container_name: influxdb
+    ports:
+      - "8086:8086"
+    volumes:
+      - influx-data:/var/lib/influxdb2
+    environment:
+      # Bootstraps InfluxDB on first run
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=admin12345
+      - DOCKER_INFLUXDB_INIT_ORG=home
+      - DOCKER_INFLUXDB_INIT_BUCKET=solis
+      - DOCKER_INFLUXDB_INIT_RETENTION=90d
+      # Recommended: Set this via Portainer override on first run.
+      # Use the same value as the Portainer secret `influx_token` for consistency.
+      # - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=__SET_IN_PORTAINER__
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      # If you created a Portainer secret `grafana_admin_password`, Grafana supports __FILE convention:
+      - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/grafana_admin_password
+    secrets:
+      - grafana_admin_password
+    depends_on:
+      - influxdb
+    restart: unless-stopped
+
+  telegraf:
+    build:
+      context: ./telegraf
+    image: telegraf-with-tools:1.30
+    container_name: telegraf
+    depends_on:
+      - influxdb
+    environment:
+      # Non-sensitive
+      - SOLIS_EMAIL=${SOLIS_EMAIL}
+      - SOLIS_DEVICE_SN=${SOLIS_DEVICE_SN}
+      - SOLIS_POLL_INTERVAL=${SOLIS_POLL_INTERVAL:-60}
+      - SOLIS_AUTH_URL=${SOLIS_AUTH_URL:-https://api.solarmanpv.com/account/v1/auth/login}
+      - SOLIS_LATEST_URL=${SOLIS_LATEST_URL:-https://api.solarmanpv.com/device/v1/data/latest}
+      # Optionally set these via env overrides if not using secrets:
+      # - SOLARMAN_CLIENT_ID=
+      # - SOLARMAN_CLIENT_SECRET=
+    secrets:
+      - influx_token
+      - solis_password
+      - solarman_client_id
+      - solarman_client_secret
+    volumes:
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - ./telegraf/scripts:/etc/telegraf/scripts:ro
+    restart: unless-stopped
+
+volumes:
+  influx-data:
+  grafana-data:
+
+secrets:
+  influx_token:
+    external: true
+  solis_password:
+    external: true
+  solarman_client_id:
+    external: true
+  solarman_client_secret:
+    external: true
+  grafana_admin_password:
+    external: true
