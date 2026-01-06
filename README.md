@@ -11,54 +11,98 @@ Production‑ready stack for collecting Solis inverter metrics from the **SolisC
 
 ---
 
-## Quick start (Portainer → Git-based stack)
 
-1. **Create Secrets** in **Portainer → Secrets** (Docker Swarm Required):
-   - `influx_token` — InfluxDB API token (you can set via Influx UI after first boot).
-   - `solis_password` — your SolisCloud/Solarman account password.
-   - `solarman_client_id` — *(optional, if your tenant requires)*.
-   - `solarman_client_secret` — *(optional, if your tenant requires)*.
-   - `grafana_admin_password` — *(optional)* Grafana admin password.
+## ✅ Deploy Steps (Portainer → Git-based stack)
 
-2. **Deploy stack** in **Portainer → Stacks → Add stack → Git**:
-   - **Repository URL:** https://github.com/Livingdead1989/solis-grafana-stack
-   - **Compose path:** `docker-compose.yml`
-   - Enable **Build images**
-   - In **Environment Variables / Overrides**, set (non-sensitive values):
-     - `SOLIS_EMAIL` (e.g., `you@example.com`)
-     - `SOLIS_DEVICE_SN` (your datalogger/inverter SN)
-     - `SOLIS_POLL_INTERVAL` (e.g., `60`)
-     - Optionally: `SOLIS_AUTH_URL`, `SOLIS_LATEST_URL` if your tenant differs  
-   - (Optional) For **first-time InfluxDB init**, set:
-     - `DOCKER_INFLUXDB_INIT_ADMIN_TOKEN` — a bootstrap token you’ll also store as **`influx_token`** secret for Telegraf.
+### 1. Prepare Secrets (Recommended)
+Create secrets in **Portainer → Secrets**:
+- `influx_token` — InfluxDB API token (you’ll create this after InfluxDB starts).
+- `solis_password` — your SolisCloud/Solarman account password.
+- `solarman_client_id` — *(optional, if your tenant requires)*.
+- `solarman_client_secret` — *(optional, if your tenant requires)*.
+- `grafana_admin_password` — *(optional)* Grafana admin password.
 
-3. **After deploy**:
-   - **InfluxDB** UI: `http://<host>:8086`  
-     Org: `home`, Bucket: `solis` (auto-created).  
-     If you didn’t set an init admin token, create a token in the UI and update the `influx_token` secret in Portainer.
-   - **Grafana** UI: `http://<host>:3000`  
-     Login `admin / <password>` (if you set `grafana_admin_password` secret) or default admin (change it!).  
-     Add InfluxDB datasource and **import** the dashboard JSON from `grafana/dashboards/solis-cloud-grafana.json`.
-
-4. **Verify data**:
-   ```bash
-   docker logs telegraf --tail=200
-   docker exec -it telegraf /etc/telegraf/scripts/solis_latest.sh | jq .
-   ```
+Alternatively, use **bind-mounted files** under `/opt/solis/secrets` if Portainer Secrets are not available.
 
 ---
 
-## Adjusting field mappings
+### 2. Deploy the Stack from Git
+1. In **Portainer → Stacks → Add stack → Git**:
+   - **Repository URL:** https://github.com/Livingdead1989/solis-grafana-stack
+   - **Compose path:** `docker-compose.yml` (or the correct path in your repo).
+   - **Branch:** `main` (or your branch).
+   - Enable **Build images** (required for custom Telegraf image).
+2. In **Environment Variables / Overrides**, set:
+   - `SOLIS_EMAIL` (e.g., `you@example.com`)
+   - `SOLIS_DEVICE_SN` (your inverter/datalogger serial number)
+   - `SOLIS_POLL_INTERVAL` (e.g., `60`)
+   - Optionally: `SOLIS_AUTH_URL`, `SOLIS_LATEST_URL` if your tenant differs.
+3. Click **Deploy the stack**.
 
-The JSON keys from SolisCloud/Solarman differ by tenant/model.  
+---
+
+### 3. After Deploy: InfluxDB Setup
+- Access InfluxDB UI:
+  ```
+  http://<your-host>:8086
+  ```
+- Log in with the admin credentials you set in `docker-compose.yml` (default: `admin / admin12345`).
+- Go to **Load Data → Tokens → Generate Token**:
+  - Choose **All Access Token** or **Read/Write Token** for bucket `solis`.
+  - Copy the token and update the `influx_token` secret in Portainer (or your secret file).
+- Restart Telegraf:
+  ```bash
+  docker restart telegraf
+  ```
+
+---
+
+### 4. Grafana Setup
+- Access Grafana UI:
+  ```
+  http://<your-host>:3000
+  ```
+- Log in:
+  - Default: `admin / admin` (or the secret you set).
+  - Change the password immediately.
+- Add **InfluxDB Data Source**:
+  - **URL:** `http://influxdb:8086`
+  - **Query Language:** Flux
+  - **Organisation:** `home`
+  - **Bucket:** `solis`
+  - **Token:** paste the InfluxDB token you created.
+  - Click **Save & Test**.
+- Import Dashboard:
+  - Go to **Dashboards → New → Import**.
+  - Upload `grafana/dashboards/solis-cloud-grafana.json`.
+  - Select the InfluxDB data source and click **Import**.
+
+---
+
+### 5. Verify Data Flow
+- Check Telegraf logs:
+  ```bash
+  docker logs telegraf --tail=100
+  ```
+- Test script manually:
+  ```bash
+  docker exec -it telegraf /etc/telegraf/scripts/solis_latest.sh | jq .
+  ```
+- Confirm data in InfluxDB:
+  ```bash
+  docker exec -it influxdb influx query 'from(bucket:"solis") |> range(start:-5m)'
+  ```
+
+---
+
+## Adjusting Field Mappings
 Run the script manually:
-
 ```bash
 docker exec -it telegraf /etc/telegraf/scripts/solis_latest.sh | jq .
 ```
+Update `telegraf/telegraf.conf` → `json_v2` paths to match your API payload.
 
-Then edit `telegraf/telegraf.conf` → `json_v2` `path` values to match your payload.  
-Common fields included:
+Common fields:
 - `active_power`, `grid_voltage`, `grid_frequency`
 - `pv1_voltage/current`, `pv2_voltage/current`
 - `energy_today`, `energy_total`
@@ -68,10 +112,10 @@ Common fields included:
 
 ---
 
-## Security
-
-- **Use Portainer Secrets** for passwords/tokens (Telegraf reads via `/run/secrets/*`).  
-- Avoid committing a real `.env` file; this repo provides **`.env.example`** and a **`.gitignore`** that excludes `.env`.
+## Security Best Practices
+- Use **Portainer Secrets** or **bind-mounted files** for sensitive values.
+- Avoid committing `.env` with real credentials; use `.env.example` for reference.
+- Change Grafana admin password immediately after first login.
 
 ---
 
